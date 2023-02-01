@@ -25,7 +25,7 @@ public class TaskService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TaskService.class);
 
-    @Value("${tasks.time.zone.id}")
+    @Value("${hiperium.city.tasks.time.zone.id}")
     private String zoneId;
 
     private final Scheduler scheduler;
@@ -39,7 +39,7 @@ public class TaskService {
     public Mono<Task> create(Mono<Task> task) {
         LOGGER.debug("create(): {}", task);
         return task
-                .map(this::validateTaskId)
+                .map(TasksUtil::validateTaskId)
                 .map(this::createAndScheduleJob)
                 .publishOn(Schedulers.boundedElastic())
                 .map(scheduledTask -> {
@@ -88,13 +88,6 @@ public class TaskService {
                 .map(this::getCurrentTrigger)
                 .map(currentTrigger -> this.unscheduleJob(id, currentTrigger))
                 .then();
-    }
-
-    private Task validateTaskId(Task newTask) {
-        if (Objects.nonNull(newTask.getId())) {
-            throw new TaskScheduleException("Task already exists with ID: " + newTask.getId() + ".");
-        }
-        return newTask;
     }
 
     private Task createAndScheduleJob(final Task task) {

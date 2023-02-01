@@ -26,27 +26,27 @@ public class TasksApplication {
 	}
 
 	private static void settingJdbcConnection() throws JsonProcessingException {
-		LOGGER.debug("settingJdbcConnection() - BEGIN");
+		LOGGER.info("settingJdbcConnection() - BEGIN");
 		AuroraPostgresSecretVO auroraSecretVO = TasksUtil.getAuroraSecretVO();
-		String sqlConnection = MessageFormat.format(JDBC_SQL_CONNECTION, auroraSecretVO.getHost(),
-				auroraSecretVO.getPort(), auroraSecretVO.getDbname());
-		LOGGER.debug("Setting JDBC Connection: {}", sqlConnection);
-		System.setProperty("spring.jdbc.url", sqlConnection);
-		System.setProperty("spring.jdbc.username", auroraSecretVO.getUsername());
-		System.setProperty("spring.jdbc.password", auroraSecretVO.getPassword());
-		LOGGER.debug("settingJdbcConnection() - END");
+		if (Objects.nonNull(auroraSecretVO)) {
+			String sqlConnection = MessageFormat.format(JDBC_SQL_CONNECTION, auroraSecretVO.getHost(),
+					auroraSecretVO.getPort(), auroraSecretVO.getDbname());
+			LOGGER.debug("Setting JDBC Connection: {}", sqlConnection);
+			System.setProperty("spring.datasource.url", sqlConnection);
+			System.setProperty("spring.datasource.username", auroraSecretVO.getUsername());
+			System.setProperty("spring.datasource.password", auroraSecretVO.getPassword());
+			System.setProperty("spring.datasource.driver-class-name", "org.postgresql.Driver");
+		}
+		LOGGER.info("settingJdbcConnection() - END");
 	}
 
 	private static void settingTasksTimeZone() {
-		LOGGER.debug("setTimeZoneProperties() - BEGIN");
-		String timeZoneId = System.getenv("TIME_ZONE_ID");
-		if (Objects.isNull(timeZoneId) || timeZoneId.isBlank()) {
-			LOGGER.warn("TIME_ZONE_ID environment variable not found.");
-			LOGGER.warn("Using the defined configuration property for Time Zone.");
-		} else {
+		LOGGER.info("settingTasksTimeZone() - BEGIN");
+		String timeZoneId = TasksUtil.getTimeZoneId();
+		if (Objects.nonNull(timeZoneId)) {
 			LOGGER.debug("Time Zone ID from Environment Variable: {}", timeZoneId);
-			System.setProperty("tasks.time.zone.id", timeZoneId);
+			System.setProperty("hiperium.city.tasks.time.zone.id", timeZoneId);
 		}
-		LOGGER.debug("setTimeZoneProperties() - END");
+		LOGGER.info("settingTasksTimeZone() - END");
 	}
 }

@@ -21,7 +21,7 @@ public class DynamoDBConfig {
     @Value("${aws.dynamodb.endpoint-override}")
     private String dynamoDBEndpoint;
 
-    @Value("${aws.region:us-east-1}")
+    @Value("${aws.region}")
     private String region;
 
     @Bean
