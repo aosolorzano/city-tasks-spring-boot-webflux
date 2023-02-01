@@ -1,7 +1,7 @@
 package com.hiperium.city.tasks.api.service;
 
 import com.hiperium.city.tasks.api.common.AbstractContainerBase;
-import com.hiperium.city.tasks.api.exception.TaskNotFoundException;
+import com.hiperium.city.tasks.api.exception.ResourceNotFoundException;
 import com.hiperium.city.tasks.api.model.Task;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.*;
@@ -83,7 +83,7 @@ class TaskServiceTest extends AbstractContainerBase {
     void givenTaskObject_whenFindById_thenReturnException() {
         Mono<Task> taskMonoResult = this.taskService.findById(100L);
         StepVerifier.create(taskMonoResult)
-                .expectError(TaskNotFoundException.class)
+                .expectError(ResourceNotFoundException.class)
                 .verify();
     }
 
@@ -136,7 +136,7 @@ class TaskServiceTest extends AbstractContainerBase {
         Mono<Task> updatedTaskMono = Mono.just(task);
         Mono<Task> taskMonoResult = this.taskService.update(100L, updatedTaskMono);
         StepVerifier.create(taskMonoResult)
-                .expectError(TaskNotFoundException.class)
+                .expectError(ResourceNotFoundException.class)
                 .verify();
     }
 
@@ -156,7 +156,7 @@ class TaskServiceTest extends AbstractContainerBase {
     void givenNotExistingTask_whenDelete_thenReturnException() {
         Mono<Void> taskMonoResult = this.taskService.delete(100L);
         StepVerifier.create(taskMonoResult)
-                .expectError(TaskNotFoundException.class)
+                .expectError(ResourceNotFoundException.class)
                 .verify();
     }
 }

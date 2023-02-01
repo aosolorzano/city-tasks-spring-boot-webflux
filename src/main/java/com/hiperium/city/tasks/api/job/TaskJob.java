@@ -1,6 +1,5 @@
 package com.hiperium.city.tasks.api.job;
 
-import com.hiperium.city.tasks.api.exception.TaskNotFoundException;
 import com.hiperium.city.tasks.api.model.Device;
 import com.hiperium.city.tasks.api.model.Task;
 import com.hiperium.city.tasks.api.repository.DeviceRepository;
@@ -11,8 +10,7 @@ import org.quartz.JobExecutionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-
-import java.util.Objects;
+import reactor.core.publisher.Mono;
 
 @Component
 public class TaskJob implements Job {
@@ -30,20 +28,26 @@ public class TaskJob implements Job {
     @Override
     public void execute(JobExecutionContext context) {
         LOGGER.debug("execute() - START");
-        String jobId = context.getJobDetail().getJobDataMap().getString(JobsUtil.TASK_JOB_ID_DATA_KEY);
-        Task task = taskRepository.findByJobId(jobId);
-        if (Objects.isNull(task)) {
-            LOGGER.error("execute() - Task not found with Job ID: {}", jobId);
-            throw new TaskNotFoundException("Task not found with Job ID: " + jobId);
-        }
-        Device device = deviceRepository.findById(task.getDeviceId());
+        final String jobId = context.getJobDetail().getJobDataMap().getString(JobsUtil.TASK_JOB_ID_DATA_KEY);
+        Mono.just(jobId)
+                .map(this.taskRepository::findByJobId)
+                .map(task -> this.deviceRepository.findById(task.getDeviceId())
+                            .map(device -> this.changeDeviceStatus(device, task))
+                            .flatMap(this.deviceRepository::update)
+                )
+                .subscribe(
+                        result -> LOGGER.debug("execute() - Task Job executed successfully: {}", jobId),
+                        error -> LOGGER.error("execute() - Error: {}", error.getMessage())
+                );
+    }
+
+    private Device changeDeviceStatus(Device device, Task task) {
         if ("ACTIVATE".equals(task.getDeviceAction())) {
             device.setStatus("ON");
         } else {
             device.setStatus("OFF");
         }
-        deviceRepository.update(device);
-        LOGGER.info("execute() - Task {} executed successfully.", task.getId());
+        return device;
     }
 }
 

@@ -109,6 +109,7 @@
             <artifactId>localstack</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Required by testcontainers.localstack -->
         <dependency>
             <artifactId>aws-java-sdk-core</artifactId>
             <groupId>com.amazonaws</groupId>

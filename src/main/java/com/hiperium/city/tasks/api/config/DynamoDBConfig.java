@@ -6,10 +6,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
-import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClientBuilder;
 
 import java.net.URI;
 import java.util.Objects;
@@ -26,17 +25,15 @@ public class DynamoDBConfig {
     private String region;
 
     @Bean
-    public DynamoDbEnhancedClient dynamoDbEnhancedClient() {
+    public DynamoDbAsyncClient dynamoDbAsyncClient() {
         LOGGER.info("AWS region: {}", this.region);
         LOGGER.info("DynamoDB endpoint: {}", this.dynamoDBEndpoint);
-        DynamoDbClientBuilder dynamoDbClientBuilder = DynamoDbClient.builder()
+        DynamoDbAsyncClientBuilder dynamoDbClientBuilder = DynamoDbAsyncClient.builder()
                 .region(Region.of(this.region))
                 .credentialsProvider(ProfileCredentialsProvider.create());
         if (Objects.nonNull(this.dynamoDBEndpoint) && !this.dynamoDBEndpoint.isBlank()) {
             dynamoDbClientBuilder.endpointOverride(URI.create(this.dynamoDBEndpoint));
         }
-        return DynamoDbEnhancedClient.builder()
-                .dynamoDbClient(dynamoDbClientBuilder.build())
-                .build();
+        return dynamoDbClientBuilder.build();
     }
 }

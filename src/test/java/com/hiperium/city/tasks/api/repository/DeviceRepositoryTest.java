@@ -1,21 +1,21 @@
 package com.hiperium.city.tasks.api.repository;
 
 import com.hiperium.city.tasks.api.common.AbstractContainerBase;
+import com.hiperium.city.tasks.api.exception.ResourceNotFoundException;
 import com.hiperium.city.tasks.api.model.Device;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.containers.localstack.LocalStackContainer;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.waiters.WaiterResponse;
-import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
-import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
-import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
 import software.amazon.awssdk.services.dynamodb.waiters.DynamoDbWaiter;
@@ -35,10 +35,10 @@ class DeviceRepositoryTest extends AbstractContainerBase {
     private static DynamoDbClient ddb;
 
     @Autowired
-    private DynamoDbEnhancedClient dynamoDbEnhancedClient;
+    private DeviceRepository deviceRepository;
 
     @Autowired
-    private DeviceRepository deviceRepository;
+    private DynamoDbAsyncClient dynamoDbAsyncClient;
 
     @BeforeAll
     public static void init() {
@@ -91,62 +91,91 @@ class DeviceRepositoryTest extends AbstractContainerBase {
     @Order(2)
     @DisplayName("Create Device Item")
     void givenDeviceObject_whenSave_mustSaveDeviceItem() {
-        try {
-            DynamoDbTable<Device> deviceTable = this.dynamoDbEnhancedClient
-                    .table(Device.TABLE_NAME, TableSchema.fromBean(Device.class));
-            Device device = getNewDevice();
-            deviceTable.putItem(device);
-        } catch (DynamoDbException e) {
-            Assertions.fail(e.getMessage());
-        }
+        Device device = getNewDevice();
+        Mono<PutItemResponse> putItemResponseMono = Mono.fromFuture(
+                this.dynamoDbAsyncClient.putItem(this.deviceRepository.putDeviceRequest(device)));
+        StepVerifier.create(putItemResponseMono)
+                .assertNext(putItemResponse -> {
+                    Assertions.assertThat(putItemResponse).isNotNull();
+                    Assertions.assertThat(putItemResponse.sdkHttpResponse().isSuccessful()).isTrue();
+                })
+                .verifyComplete();
     }
 
     @Test
     @Order(3)
     @DisplayName("Find Device by ID")
-    void givenDeviceId_whenFindById_mustReturnDevice() {
-        Device device = this.deviceRepository.findById("1");
-        Assertions.assertThat(device).isNotNull();
-        Assertions.assertThat(device.getId()).isEqualTo(DEVICE_ID);
-        Assertions.assertThat(device.getName()).isEqualTo("Device 1");
+    void givenDeviceId_whenFindById_mustReturnDeviceItem() {
+        Mono<Device> deviceMonoResponse = this.deviceRepository.findById(DEVICE_ID);
+        StepVerifier.create(deviceMonoResponse)
+                .assertNext(device -> {
+                    Assertions.assertThat(device).isNotNull();
+                    Assertions.assertThat(device.getId()).isEqualTo(DEVICE_ID);
+                    Assertions.assertThat(device.getName()).isEqualTo("Device 1");
+                    Assertions.assertThat(device.getDescription()).isEqualTo("Device 1 Description");
+                    Assertions.assertThat(device.getStatus()).isEqualTo("ACTIVE");
+                })
+                .verifyComplete();
     }
 
     @Test
     @Order(4)
-    @DisplayName("Find Device with wrong ID")
-    void givenDeviceId_whenFindById_mustReturnNull() {
-        Device device = this.deviceRepository.findById("100");
-        Assertions.assertThat(device).isNull();
+    @DisplayName("Find not existing Device ID")
+    void givenDeviceId_whenFindById_mustThrowException() {
+        Mono<Device> deviceMonoResponse = this.deviceRepository.findById("100");
+        StepVerifier.create(deviceMonoResponse)
+                .expectError(ResourceNotFoundException.class)
+                .verify();
     }
 
     @Test
     @Order(5)
     @DisplayName("Update Device Item")
     void givenDeviceItem_whenUpdate_mustUpdateDeviceItem() {
-        Device device = this.deviceRepository.findById(DEVICE_ID);
+        Device device = getNewDevice();
         device.setName("Device 1 Updated");
-        this.deviceRepository.update(device);
-        Device deviceUpdated = this.deviceRepository.findById(DEVICE_ID);
-        Assertions.assertThat(deviceUpdated).isNotNull();
-        Assertions.assertThat(deviceUpdated.getId()).isEqualTo(DEVICE_ID);
-        Assertions.assertThat(deviceUpdated.getName()).isEqualTo("Device 1 Updated");
+        device.setDescription("Device 1 Description Updated");
+        device.setStatus("INACTIVE");
+        Mono<Boolean> deviceMonoResponse = this.deviceRepository.update(device);
+        StepVerifier.create(deviceMonoResponse)
+                .expectNext(true)
+                .verifyComplete();
     }
 
     @Test
     @Order(6)
-    @DisplayName("Update not existing Device Item")
+    @DisplayName("Verify Device Changes")
+    void givenDeviceId_whenFindById_mustVerifyLastDeviceChanges() {
+        Mono<Device> deviceMonoResponse = this.deviceRepository.findById(DEVICE_ID);
+        StepVerifier.create(deviceMonoResponse)
+                .assertNext(device -> {
+                    Assertions.assertThat(device).isNotNull();
+                    Assertions.assertThat(device.getId()).isEqualTo(DEVICE_ID);
+                    Assertions.assertThat(device.getName()).isEqualTo("Device 1 Updated");
+                    Assertions.assertThat(device.getDescription()).isEqualTo("Device 1 Description Updated");
+                    Assertions.assertThat(device.getStatus()).isEqualTo("INACTIVE");
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    @Order(7)
+    @DisplayName("Update not existing Device ID")
     void givenDeviceItem_whenUpdate_mustThrowException() {
         Device device = getNewDevice();
         device.setId("100");
-        Assertions.assertThatThrownBy(() -> this.deviceRepository.update(device))
-                .isInstanceOf(InvalidDataAccessApiUsageException.class);
+        Mono<Boolean> deviceMonoResponse = this.deviceRepository.update(device);
+        StepVerifier.create(deviceMonoResponse)
+                .expectErrorMatches(throwable -> throwable instanceof ResourceNotFoundException)
+                .verify();
     }
 
     private static Device getNewDevice() {
-        Device device = Device.builder()
+        return Device.builder()
                 .id(DEVICE_ID)
                 .name("Device 1")
+                .description("Device 1 Description")
+                .status("ACTIVE")
                 .build();
-        return device;
     }
 }

@@ -1,6 +1,6 @@
 package com.hiperium.city.tasks.api.service;
 
-import com.hiperium.city.tasks.api.exception.TaskNotFoundException;
+import com.hiperium.city.tasks.api.exception.ResourceNotFoundException;
 import com.hiperium.city.tasks.api.exception.TaskScheduleException;
 import com.hiperium.city.tasks.api.model.Task;
 import com.hiperium.city.tasks.api.repository.TaskRepository;
@@ -52,7 +52,7 @@ public class TaskService {
     public Mono<Task> findById(Long id) {
         LOGGER.debug("findById(): {}", id);
         return Mono.fromSupplier(() -> this.taskRepository.findById(id)
-                        .orElseThrow(() -> new TaskNotFoundException("Task not found with ID: " + id + ".")))
+                        .orElseThrow(() -> new ResourceNotFoundException("Task not found with ID: " + id + ".")))
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
