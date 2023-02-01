@@ -1,6 +1,7 @@
 package com.hiperium.city.tasks.api;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.hiperium.city.tasks.api.utils.EnvironmentUtil;
 import com.hiperium.city.tasks.api.utils.TasksUtil;
 import com.hiperium.city.tasks.api.vo.AuroraPostgresSecretVO;
 import org.slf4j.Logger;
@@ -19,34 +20,52 @@ public class TasksApplication {
 
 	public static void main(String[] args) throws JsonProcessingException {
 		LOGGER.info("main() - BEGIN");
-		settingJdbcConnection();
-		settingTasksTimeZone();
+		loadEnvironmentVariables();
 		SpringApplication.run(TasksApplication.class, args);
 		LOGGER.info("main() - END");
 	}
 
+	private static void loadEnvironmentVariables() throws JsonProcessingException {
+		settingJdbcConnection();
+		settingDefaultTimeZone();
+		settingAwsRegion();
+		settingAwsEndpointOverride();
+	}
+
 	private static void settingJdbcConnection() throws JsonProcessingException {
-		LOGGER.info("settingJdbcConnection() - BEGIN");
-		AuroraPostgresSecretVO auroraSecretVO = TasksUtil.getAuroraSecretVO();
+		AuroraPostgresSecretVO auroraSecretVO = EnvironmentUtil.getAuroraSecretVO();
 		if (Objects.nonNull(auroraSecretVO)) {
 			String sqlConnection = MessageFormat.format(JDBC_SQL_CONNECTION, auroraSecretVO.getHost(),
 					auroraSecretVO.getPort(), auroraSecretVO.getDbname());
-			LOGGER.debug("Setting JDBC Connection: {}", sqlConnection);
+			LOGGER.info("JDBC Connection found: {}", sqlConnection);
 			System.setProperty("spring.datasource.url", sqlConnection);
 			System.setProperty("spring.datasource.username", auroraSecretVO.getUsername());
 			System.setProperty("spring.datasource.password", auroraSecretVO.getPassword());
 			System.setProperty("spring.datasource.driver-class-name", "org.postgresql.Driver");
 		}
-		LOGGER.info("settingJdbcConnection() - END");
 	}
 
-	private static void settingTasksTimeZone() {
-		LOGGER.info("settingTasksTimeZone() - BEGIN");
-		String timeZoneId = TasksUtil.getTimeZoneId();
+	private static void settingDefaultTimeZone() {
+		String timeZoneId = EnvironmentUtil.getTimeZoneId();
 		if (Objects.nonNull(timeZoneId)) {
-			LOGGER.debug("Time Zone ID from Environment Variable: {}", timeZoneId);
+			LOGGER.info("Time Zone ID found: {}", timeZoneId);
 			System.setProperty("hiperium.city.tasks.time.zone.id", timeZoneId);
 		}
-		LOGGER.info("settingTasksTimeZone() - END");
+	}
+
+	private static void settingAwsRegion() {
+		String awsRegion = EnvironmentUtil.getAwsRegion();
+		if (Objects.nonNull(awsRegion)) {
+			LOGGER.info("AWS Region found: {}", awsRegion);
+			System.setProperty("aws.region", awsRegion);
+		}
+	}
+
+	private static void settingAwsEndpointOverride() {
+		String endpointOverride = EnvironmentUtil.getAwsEndpointOverride();
+		if (Objects.nonNull(endpointOverride)) {
+			LOGGER.info("AWS Endpoint-Override found: {}", endpointOverride);
+			System.setProperty("aws.dynamodb.endpoint-override", endpointOverride);
+		}
 	}
 }

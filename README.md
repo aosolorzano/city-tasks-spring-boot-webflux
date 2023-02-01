@@ -1,4 +1,5 @@
-## Using TDD with Integration Testing and Testcontainers.
+
+## Using WebFlux with TDD, Integration Testing, and Testcontainers.
 
 * **Author**: [Andres Solorzano](https://www.linkedin.com/in/aosolorzano/).
 * **Level**: Advanced.
@@ -7,8 +8,8 @@
 ---
 
 ## Description
-This project uses the Spring Boot Framework to perform CRUD operations over Tasks records that store Quartz Jobs on AWS Postgres.
-The idea is to use TDD from the beginning of the project and use Testcontainers to run the application and the database in a Docker container.
+This project uses the Spring Boot Framework to perform CRUD operations over Tasks records that store Quartz Jobs on a Postgres database.
+The idea is to use TDD from the beginning of the development and use Testcontainers to run the Integration Tests against the Postgres and LocalStack with DynamoDB running inside.
 
 ### Running the application using Docker Compose
 Execute the following command from the root of the project:
@@ -16,21 +17,12 @@ Execute the following command from the root of the project:
 docker compose up --build
 ```
 
-### Adding a Device item into DynamoDB
-Execute the following command from the root of the project:
-```bash
-aws dynamodb put-item                     \
-    --table-name Devices                  \
-    --endpoint-url http://localhost:8000  \
-    --item file://utils/dynamodb/items/device-item.json
-```
-
-### Getting a Device item from DynamoDB
+### Getting a Device item from DynamoDB from LocalStack
 Execute the following command:
 ```bash
 aws dynamodb scan         \
   --table-name Devices    \
-  --endpoint-url http://localhost:8000
+  --endpoint-url http://localhost:4566
 ```
 
 ### Reference Documentation
