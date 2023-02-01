@@ -38,7 +38,9 @@ public class TaskService {
 
     public Mono<Task> create(Mono<Task> task) {
         LOGGER.debug("create(): {}", task);
-        return task.map(this::createAndScheduleJob)
+        return task
+                .map(this::validateTaskId)
+                .map(this::createAndScheduleJob)
                 .publishOn(Schedulers.boundedElastic())
                 .map(scheduledTask -> {
                     scheduledTask.setCreatedAt(ZonedDateTime.now());
@@ -88,6 +90,13 @@ public class TaskService {
                 .then();
     }
 
+    private Task validateTaskId(Task newTask) {
+        if (Objects.nonNull(newTask.getId())) {
+            throw new TaskScheduleException("Task already exists with ID: " + newTask.getId() + ".");
+        }
+        return newTask;
+    }
+
     private Task createAndScheduleJob(final Task task) {
         LOGGER.debug("createAndScheduleJob() - BEGIN: {}", task.getName());
         task.setJobId(TasksUtil.generateJobId());
@@ -103,7 +112,10 @@ public class TaskService {
     }
 
     private Trigger getCurrentTrigger(Task task) {
-        LOGGER.debug("getCurrentTrigger() - BEGIN: {}", task.getJobId());
+        LOGGER.debug("getCurrentTrigger() - BEGIN: {}", task.getId());
+        if (Objects.isNull(task.getJobId())) {
+            throw new TaskScheduleException("Try to find Trigger with NULL Job ID for Task: " + task.getId() + ".");
+        }
         Trigger trigger = null;
         try {
             for (JobKey jobKey : this.scheduler.getJobKeys(GroupMatcher.jobGroupEquals(JobsUtil.TASK_GROUP_NAME))) {

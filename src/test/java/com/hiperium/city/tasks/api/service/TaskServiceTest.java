@@ -5,6 +5,7 @@ import com.hiperium.city.tasks.api.exception.TaskNotFoundException;
 import com.hiperium.city.tasks.api.model.Task;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.*;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
@@ -58,7 +59,7 @@ class TaskServiceTest extends AbstractContainerBase {
                     Assertions.assertThat(savedTask.getExecutionCommand()).isEqualTo("java -jar test.jar");
                     Assertions.assertThat(savedTask.getDeviceId()).isEqualTo(DEVICE_ID);
                     Assertions.assertThat(savedTask.getDeviceAction()).isEqualTo("ACTIVATE");
-                    task.setId(savedTask.getId());
+                    BeanUtils.copyProperties(savedTask, task);
                 })
                 .verifyComplete();
     }
